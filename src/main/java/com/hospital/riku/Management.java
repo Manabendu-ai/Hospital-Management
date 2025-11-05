@@ -5,18 +5,13 @@ import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
 import org.hibernate.query.Query;
 
-import javax.print.Doc;
-import java.util.InputMismatchException;
 import java.util.List;
-import java.util.Objects;
 import java.util.Scanner;
 
 
 public class Management {
 
     private Config cfg;
-    private Session session;
-    private Transaction transaction;
     private Scanner sc;
     private SessionFactory sf;
 
@@ -28,8 +23,6 @@ public class Management {
                 .addAnnotatedClass(com.hospital.riku.Doctor.class)
                 .addAnnotatedClass(com.hospital.riku.Appointment.class)
                 .buildSessionFactory();
-        session = sf.openSession();
-        transaction = session.beginTransaction();
     }
 
     public void dashboard(){
@@ -39,7 +32,8 @@ public class Management {
         System.out.println("3) ADD DOCTOR");
         System.out.println("4) VIEW DOCTORS");
         System.out.println("5) BOOK APPOINTMENT");
-        System.out.println("6) EXIT");
+        System.out.println("6) VIEW APPOINTMENTS");
+        System.out.println("7) EXIT");
         System.out.print(">> ");
     }
 
@@ -47,7 +41,9 @@ public class Management {
         int id,age;
         char gender;
         String name;
-        try {
+        Transaction transaction = null;
+        try (Session session = sf.openSession()){
+            transaction = session.beginTransaction();
             System.out.println("ENTER PATIENT ID: ");
             id = sc.nextInt();
             sc.nextLine();
@@ -72,7 +68,9 @@ public class Management {
             transaction.commit();
             System.out.println("PATIENT ADDED SUCCESSFULLY!");
         } catch (Exception e){
-            transaction.rollback();
+            if (transaction != null && transaction.isActive()) {
+                transaction.rollback();
+            }
             System.out.println("AN EXCEPTION HAS OCCURRED PLEASE RE ENTER!");
             sc.nextLine();
         }
@@ -82,7 +80,9 @@ public class Management {
     public void addDoctor(){
         int id;
         String name,spec;
-        try {
+        Transaction transaction = null;
+        try (Session session = sf.openSession()){
+            transaction = session.beginTransaction();
             System.out.println("ENTER DOCTOR ID: ");
             id = sc.nextInt();
             sc.nextLine();
@@ -102,7 +102,9 @@ public class Management {
             transaction.commit();
             System.out.println("DOCTOR ADDED SUCCESSFULLY!");
         } catch (Exception e){
-            transaction.rollback();
+            if (transaction != null && transaction.isActive()) {
+                transaction.rollback();
+            }
             System.out.println("AN EXCEPTION HAS OCCURRED PLEASE RE ENTER!");
             sc.nextLine();
         }
@@ -110,17 +112,22 @@ public class Management {
     }
 
     public boolean isExisting(int id, int m){
-        if(m==1) {
-            Patient p = session.find(Patient.class, id);
-            return p != null;
-        } else {
-            Doctor d = session.find(Doctor.class, id);
-            return d != null;
+        try (Session session = sf.openSession()){
+            if (m == 1) {
+                Patient p = session.find(Patient.class, id);
+                return p != null;
+            } else {
+                Doctor d = session.find(Doctor.class, id);
+                return d != null;
+            }
+        } catch (Exception e) {
+            System.out.println("AN EXCEPTION OCCURRED! PLEASE TRY AGAIN LATER!");
+            return false;
         }
     }
 
     public void viewPatients(){
-        try {
+        try (Session session = sf.openSession()){
             List<Patient> patients = session.createQuery("from Patient",Patient.class).getResultList();
             if(patients==null){
                 System.out.println("NO PATIENTS IN THE RECORD!!");
@@ -155,7 +162,7 @@ public class Management {
     }
 
     public void viewDoctors(){
-        try {
+        try (Session session = sf.openSession()){
             List<Doctor> doctors = session.createQuery("from Doctor ",Doctor.class).getResultList();
             if(doctors==null){
                 System.out.println("NO DOCTORS IN THE RECORD!!");
@@ -187,25 +194,26 @@ public class Management {
 
     }
     public boolean isFull(int did, String date){
-        Query<Long> query = session.createQuery("select count(a) from Appointment a where a.doctor.doctor_id= ?1 and a.app_date = ?2 ",Long.class);
-        query.setParameter(1,did);
-        query.setParameter(2,date);
-        Long count = query.getSingleResult();
-        return count >= 5;
+        try (Session session = sf.openSession()){
+            Query<Long> query = session.createQuery("select count(a) from Appointment a where a.doctor.doctor_id= ?1 and a.app_date = ?2 ", Long.class);
+            query.setParameter(1, did);
+            query.setParameter(2, date);
+            Long count = query.getSingleResult();
+            return count >= 5;
+        }catch (Exception e){
+            System.out.println("AN EXCEPTION HAS OCCURRED! TRY AGAIN LATER!");
+            return true;
+        }
     }
 
-    public int getAppId(){
-        int app_id = 0;
-        Query<Integer> query = session.createQuery("select a.app_id from Appointment a order by a.app_id desc",Integer.class).setMaxResults(1);
-        app_id = query.getSingleResult();
-        return app_id;
-    }
     public void bookAppointment(){
         int pid, did;
         String date;
         Patient patient;
         Doctor doctor;
-        try{
+        Transaction transaction = null;
+        try(Session session = sf.openSession()){
+            transaction = session.beginTransaction();
             System.out.println("ENTER THE PATIENT ID: ");
             pid = sc.nextInt();
             patient = session.find(Patient.class, pid);
@@ -228,19 +236,22 @@ public class Management {
                 return;
             }
             Appointment app = new Appointment();
-            app.setApp_id(getAppId()+1);
             app.setPatient(patient);
             app.setDoctor(doctor);
             app.setApp_date(date);
+            session.persist(app);
+            transaction.commit();
             System.out.println("APPOINTMENT BOOKED SUCCESSFULLY!");
         } catch (Exception e){
-            transaction.rollback();
+            if (transaction != null && transaction.isActive()) {
+                transaction.rollback();
+            }
             System.out.println("AN EXCEPTION HAS OCCURRED PLEASE RE ENTER!");
             sc.nextLine();
         }
     }
     public void viewAppointments(){
-        try {
+        try (Session session = sf.openSession()){
             String q = """
                     from Appointment
                     """;
@@ -278,10 +289,15 @@ public class Management {
     }
 
     public void exe(){
-        int choice;
+        int choice=0;
         while (true){
             dashboard();
-            choice = sc.nextInt();
+            try {
+                choice = sc.nextInt();
+            } catch (Exception e) {
+                System.out.println("AN EXCEPTION HAS OCCURRED PLEASE RE-ENTER");
+                sc.nextLine();viewDoctors();
+            }
             switch (choice){
                 case 1: addPatient();
                     break;
@@ -293,10 +309,11 @@ public class Management {
                     break;
                 case 5: bookAppointment();
                     break;
-                case 6:
+                case 6: viewAppointments();
+                    break;
+                case 7:
                     System.out.println("EXITING HOSPITAL MANAGEMENT APP!");
                     sf.close();
-                    session.close();
                     System.exit(0);
                 default:
                     System.out.println("INVALID OPTION! PLEASE TRY AGAIN!");

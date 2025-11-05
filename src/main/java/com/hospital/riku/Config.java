@@ -11,7 +11,7 @@ public class Config {
                 .setProperty("hibernate.connection.driver_class","org.postgresql.Driver")
                 .setProperty("hibernate.connection.user","manabendu")
                 .setProperty("hibernate.connection.password","Mk7riku@23")
-                .setProperty("hibernate.show_sql","true")
+                .setProperty("hibernate.show_sql","false6")
                 .setProperty("hibernate.dialect","org.hibernate.dialect.PostgreSQLDialect")
                 .setProperty("hibernate.format_sql","false")
                 .setProperty("hibernate.hbm2ddl.auto","update");

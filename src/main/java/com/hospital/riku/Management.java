@@ -239,6 +239,43 @@ public class Management {
             sc.nextLine();
         }
     }
+    public void viewAppointments(){
+        try {
+            String q = """
+                    from Appointment
+                    """;
+            List<Appointment> appointments = session.createQuery(q,Appointment.class).getResultList();
+            if(appointments==null){
+                System.out.println("NO APPOINTMENTS IN THE RECORD!!");
+                return;
+            }
+            int idWidth = 15;
+            int pWidth = 20;
+            int dWidth = 20;
+            int dtWidth = 20;
+            String border = "+" + "-".repeat(idWidth + 2)
+                    + "+" + "-".repeat(pWidth + 2)
+                    + "+" + "-".repeat(dWidth + 2)
+                    + "+" + "-".repeat(dtWidth + 2)
+                    + "+";
+
+            System.out.println(border);
+
+            System.out.printf("| %-"+idWidth+"s | %-"+pWidth+"s | %-"+dWidth+"s | %-"+dtWidth+"s |\n",
+                    "Appointment ID", "Patient NAME", "Doctor NAME", "Appointment DATE");
+            System.out.println(border);
+
+            for (Appointment a : appointments) {
+                System.out.printf("| %-"+idWidth+"s | %-"+pWidth+"s | %-"+dWidth+"s | %-"+dtWidth+"s |\n",
+                        a.getApp_id(),a.getPatient().getPatient_name(),a.getDoctor().getDoctor_name(),a.getApp_date());
+            }
+            System.out.println(border);
+
+        } catch (Exception e){
+            System.out.println("AN EXCEPTION HAS OCCURRED PLEASE RE ENTER!");
+        }
+
+    }
 
     public void exe(){
         int choice;
